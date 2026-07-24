@@ -37,7 +37,7 @@ ifeq ($(strip $(CODESIGN_IDENTITY)),)
 CODESIGN_IDENTITY := -
 endif
 
-.PHONY: all clean install refresh reload uninstall help pkg version
+.PHONY: all clean install refresh reload uninstall help pkg version test
 
 all: $(BUNDLE)
 
@@ -122,6 +122,13 @@ pkg: $(BUNDLE)
 version:
 	@echo "$(VERSION) (build $(BUILD_NUMBER))"
 
+# 조합 엔진 단위 테스트. IMK/프레임워크 없이 순수 로직만 컴파일해 실행.
+TEST_SRC := Sources/HangulAutomaton.swift Sources/Keymap.swift Tests/AutomatonTests.swift
+test:
+	@mkdir -p $(BUILD_DIR)
+	@$(SWIFTC) -O $(TEST_SRC) -o $(BUILD_DIR)/automaton-tests
+	@$(BUILD_DIR)/automaton-tests
+
 help:
 	@echo "make           build the .app bundle ($(BUNDLE))"
 	@echo "make install   sudo-copy to /Library/Input Methods/ (system-wide; default)"
@@ -130,6 +137,7 @@ help:
 	@echo "make uninstall remove from $(INSTALL_DIR)"
 	@echo "make pkg       build an installer package ($(BUILD_DIR)/$(APP_NAME).pkg)"
 	@echo "make version   print the current version ($(VERSION), build $(BUILD_NUMBER))"
+	@echo "make test      run HangulAutomaton unit tests"
 	@echo "make clean     delete build artifacts"
 	@echo ""
 	@echo "Bump the version by editing the VERSION file; build number is the git commit count."

@@ -88,10 +88,10 @@
 ### setMarkedText / insertText 호출 위치
 
 - `setMarker(s)`: composing 중 매번. `replacementRange: NSNotFound`로 selection 자동 replace 활용.
-- `endComposition`: marker commit (insertText) + `setMarkedText("")` 추가 호출로 IME state 명시 해제.
-  - NSTextView: no-op
-  - Chromium: mirror buffer empty (doubling 방지 목적)
-  - Monaco: IME state release (Cmd+A 등 후속 키 dispatch 가능하게)
+- `endComposition`: 조합 중인 음절을 `insertText`로 commit만 하고 종료한다. **`setMarkedText("")`는 호출하지 않는다.**
+  - IMK 사양상 `insertText`가 활성 마커를 자동으로 commit·해제하므로 명시적 clear가 불필요.
+  - 여기서 `setMarkedText("")`를 *추가로* 호출하면 Chromium contenteditable이 이를 별도 조합 lifecycle로 해석해 focus 복귀 시 mirror buffer를 자동 commit → "마마" doubling 재발. (근거 주석: `HangulInputController.endComposition`)
+- `clearMarker`(= `setMarkedText("")`): 백스페이스로 조합을 **완전히 지운 경우에만** 호출. 마지막 자모 잔상 제거가 목적이며, 커밋 경로에서는 쓰지 않는다.
 
 ## 검증 체크리스트 (각 변경 후 필수)
 
