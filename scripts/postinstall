@@ -1,0 +1,19 @@
+#!/bin/bash
+set -e
+
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister"
+"$LSREGISTER" -f "/Library/Input Methods/ra1nIME.app"
+
+killall TextInputMenuAgent 2>/dev/null || true
+killall cfprefsd 2>/dev/null || true
+
+loggedInUser=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ { print $3 }')
+
+if [ -n "$loggedInUser" ]; then
+  uid=$(id -u "$loggedInUser" 2>/dev/null || echo "")
+  if [ -n "$uid" ]; then
+    launchctl asuser "$uid" osascript -e 'display notification "시스템 설정 → 개인정보 보호 → 입력 모니터링에서 ra1n IME를 활성화해주세요." with title "ra1n IME 권한 필요"' 2>/dev/null || true
+  fi
+fi
+
+exit 0
