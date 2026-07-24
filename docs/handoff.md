@@ -6,7 +6,7 @@
 >
 > - 아래 **2·3·5절**은 초기 마커 구조, 그 시점의 미해결 이슈, 그리고 *채택되지 않은* 리팩토링 계획(인라인 commit)을 서술합니다. **현재 코드는 인라인 commit으로 가지 않았고**, 마커 방식을 유지하되 focus-loss 문제를 다른 방식(Cmd-down 선제 커밋 + `ClickMonitor` + `commitAndRepost`)으로 해결했습니다.
 > - 이 문서가 참조하는 `deferCommitForFocusLoss`·`flushDeferredCommit`·`pendingCommit` 함수는 **현재 코드에 존재하지 않습니다.**
-> - **3절의 미해결 이슈**(Notes/Terminal 커밋 소실, chat doubling)는 위 해결책 도입 *이전* 상태입니다. AGENTS.md는 이들을 해결된 것으로 기록하므로, 실제 상태는 `make refresh` 후 재확인하세요.
+> - **3절의 미해결 이슈**(Notes/Terminal 커밋 소실, chat doubling)는 위 해결책 도입 *이전* 상태이며, **2026-07-24 수동 검증에서 모두 해결이 확인**되었습니다. 3절 표의 ✗는 과거 기록으로 보존합니다.
 > - 단, **4절(Apple KoreanIM 분석, Monaco ZWSP 트릭, 클라이언트별 marker 특성)** 은 여전히 유효한 배경지식입니다.
 
 ## 1. 프로젝트 개요
@@ -40,6 +40,8 @@ Focus return:
 2. `flushDeferredCommit`: client의 markedRange, selectedRange, attributedSubstring(mr), attributedSubstring(beforeRange) 조회 → decision tree로 처리
 
 ## 3. 미해결된 이슈와 현 상태
+
+> ✅ **갱신(2026-07-24): 아래 ✗ 항목(Notes/Terminal 커밋 소실, chat doubling)은 수동 검증에서 모두 해결이 확인되었습니다.** 아래 표는 당시 스냅샷으로 보존합니다. 현재 검증된 client 목록은 [AGENTS.md](../AGENTS.md) 참조.
 
 | 시나리오 | 상태 | 비고 |
 |---|---|---|
