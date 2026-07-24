@@ -157,13 +157,11 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
         target: nil, action: nil)
     private let debugCheckbox = NSButton(checkboxWithTitle: "디버그 로그",
                                          target: nil, action: nil)
-    private let debugLogScroll = NSScrollView()
-    private let debugLogText = NSTextView()
-    private let debugClearBtn = NSButton(title: "비우기", target: nil, action: nil)
+    private let debugViewBtn = NSButton(title: "로그 보기", target: nil, action: nil)
 
     private convenience init() {
         let window = PrefsWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 500),
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 400),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered, defer: false)
         window.title = "ra1n IME 환경설정"
@@ -259,10 +257,11 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
 
         debugCheckbox.target = self
         debugCheckbox.action = #selector(debugLoggingChanged(_:))
-        debugClearBtn.target = self
-        debugClearBtn.action = #selector(clearDebugLog(_:))
-        debugClearBtn.bezelStyle = .rounded
-        debugClearBtn.controlSize = .small
+        debugViewBtn.target = self
+        debugViewBtn.action = #selector(viewDebugLog(_:))
+        debugViewBtn.bezelStyle = .rounded
+        debugViewBtn.controlSize = .small
+        debugViewBtn.toolTip = "터미널에서 실시간 로그 스트림을 엽니다. 상세 로그를 보려면 위의 '디버그 로그'를 켜세요."
 
         let debugHeader = NSStackView()
         debugHeader.orientation = .horizontal
@@ -272,33 +271,9 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
         debugHeader.addArrangedSubview(spacer)
-        debugHeader.addArrangedSubview(debugClearBtn)
+        debugHeader.addArrangedSubview(debugViewBtn)
         root.addArrangedSubview(debugHeader)
-        root.setCustomSpacing(4, after: root.arrangedSubviews.last!)
-
-        debugLogScroll.hasVerticalScroller = true
-        debugLogScroll.borderType = .bezelBorder
-        debugLogScroll.autohidesScrollers = false
-        debugLogScroll.translatesAutoresizingMaskIntoConstraints = false
-        debugLogScroll.documentView = debugLogText
-
-        debugLogText.isEditable = false
-        debugLogText.isSelectable = true
-        debugLogText.isRichText = false
-        debugLogText.font = NSFont.monospacedSystemFont(ofSize: 10, weight: .regular)
-        debugLogText.textContainerInset = NSSize(width: 4, height: 4)
-        debugLogText.isVerticallyResizable = true
-        debugLogText.isHorizontallyResizable = false
-        debugLogText.autoresizingMask = [.width]
-        debugLogText.textContainer?.widthTracksTextView = true
-        debugLogText.textContainer?.containerSize = NSSize(
-            width: 360,
-            height: CGFloat.greatestFiniteMagnitude)
-
-        root.addArrangedSubview(debugLogScroll)
-        root.setCustomSpacing(4, after: root.arrangedSubviews.last!)
-        debugLogScroll.widthAnchor.constraint(equalTo: root.widthAnchor).isActive = true
-        debugLogScroll.heightAnchor.constraint(equalToConstant: 100).isActive = true
+        root.setCustomSpacing(16, after: root.arrangedSubviews.last!)
 
         // 닫기
         let closeRow = NSStackView()
@@ -345,13 +320,6 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
 
     func show() {
         loadFromPrefs()
-        // 현재까지의 로그를 스냅샷으로 가져오고 창이 열린 동안 실시간 업데이트 수신.
-        debugLogText.string = DebugLogger.shared.lines.joined(separator: "\n")
-        scrollDebugLogToEnd()
-        DebugLogger.shared.onAppend = { [weak self] line in
-            // DebugLogger가 이미 메인 큐로 전환 후 호출함.
-            self?.appendDebugLine(line)
-        }
         // 설정 창이 열린 동안만 에이전트(LSUIElement)에서 일반 앱으로 승격.
         // Dock 타일과 ⌘Tab에 표시되며, Apple의 메뉴 바 앱 "설정…"과 동일한 방식.
         // windowWillClose에서 되돌림.
@@ -362,29 +330,9 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
-        DebugLogger.shared.onAppend = nil
         // Dock 슬롯을 영구 차지하지 않도록 에이전트로 복귀.
         NSApp.mainMenu = nil
         NSApp.setActivationPolicy(.accessory)
-    }
-
-    private func appendDebugLine(_ line: String) {
-        let suffix = debugLogText.string.isEmpty ? line : "\n" + line
-        if let storage = debugLogText.textStorage {
-            let attrs: [NSAttributedString.Key: Any] = [
-                .font: debugLogText.font ?? NSFont.monospacedSystemFont(ofSize: 10, weight: .regular),
-                .foregroundColor: NSColor.labelColor,
-            ]
-            storage.append(NSAttributedString(string: suffix, attributes: attrs))
-        } else {
-            debugLogText.string += suffix
-        }
-        scrollDebugLogToEnd()
-    }
-
-    private func scrollDebugLogToEnd() {
-        let end = NSRange(location: debugLogText.string.utf16.count, length: 0)
-        debugLogText.scrollRangeToVisible(end)
     }
 
     /// 설정 창이 열린 동안만 존재하는 최소 메인 메뉴.
@@ -410,26 +358,6 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
         fileMenu.addItem(NSMenuItem(title: "닫기",
                                     action: #selector(NSWindow.performClose(_:)),
                                     keyEquivalent: "w"))
-
-        // 편집 메뉴: 디버그 로그 뷰(및 기타 NSTextView)의 복사/붙여넣기/전체선택 단축키 제공.
-        // 이 메뉴가 없으면 AppKit이 ⌘C/⌘V/⌘A 키 이퀴밸런트를 연결하지 않음.
-        let editItem = NSMenuItem()
-        main.addItem(editItem)
-        let editMenu = NSMenu(title: "편집")
-        editItem.submenu = editMenu
-        editMenu.addItem(NSMenuItem(title: "잘라내기",
-                                    action: #selector(NSText.cut(_:)),
-                                    keyEquivalent: "x"))
-        editMenu.addItem(NSMenuItem(title: "복사",
-                                    action: #selector(NSText.copy(_:)),
-                                    keyEquivalent: "c"))
-        editMenu.addItem(NSMenuItem(title: "붙여넣기",
-                                    action: #selector(NSText.paste(_:)),
-                                    keyEquivalent: "v"))
-        editMenu.addItem(NSMenuItem.separator())
-        editMenu.addItem(NSMenuItem(title: "모두 선택",
-                                    action: #selector(NSText.selectAll(_:)),
-                                    keyEquivalent: "a"))
 
         // 윈도우 메뉴: ⌘M(최소화)를 자동 제공. NSApp.windowsMenu로 연결하면
         // AppKit이 윈도우 목록을 자동으로 채움.
@@ -468,9 +396,40 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
     @objc private func debugLoggingChanged(_ sender: NSButton) {
         Preferences.shared.debugLogging = (sender.state == .on)
     }
-    @objc private func clearDebugLog(_ sender: NSButton) {
-        DebugLogger.shared.clear()
-        debugLogText.string = ""
+
+    /// 터미널에서 실시간 로그 스트림을 연다.
+    /// 자동화(Apple Events) 권한을 요구하지 않도록, 임시 `.command` 스크립트를
+    /// 만들어 기본 앱(Terminal)으로 여는 방식을 사용. 실패 시 명령어를
+    /// 클립보드에 복사하고 안내한다.
+    @objc private func viewDebugLog(_ sender: NSButton) {
+        let cmd = "log stream --predicate 'process == \"ra1nIME\"' --info"
+
+        // 폴백 대비 항상 클립보드에 복사.
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(cmd, forType: .string)
+
+        let script = """
+        #!/bin/bash
+        echo "ra1n IME 로그 스트림 — 종료하려면 Ctrl+C"
+        echo
+        \(cmd)
+        """
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ra1nIME-logs.command")
+        do {
+            try script.write(to: url, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755],
+                                                  ofItemAtPath: url.path)
+            NSWorkspace.shared.open(url)
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "로그 명령어를 클립보드에 복사했습니다"
+            alert.informativeText = "터미널을 열고 붙여넣기(⌘V) 후 실행하세요.\n\n\(cmd)"
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "확인")
+            NSApp.activate(ignoringOtherApps: true)
+            alert.runModal()
+        }
     }
     @objc private func openInputMonitoring() {
         NSWorkspace.shared.open(SystemSettingsURL.inputMonitoring)

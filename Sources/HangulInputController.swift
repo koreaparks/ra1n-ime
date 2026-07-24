@@ -4,10 +4,12 @@ import InputMethodKit
 import OSLog
 
 /// `Preferences.shared.debugLogging`을 존중하는 os.Logger 래퍼.
-/// 메모리 내 작은 링 버퍼를 유지해 설정 창에서 실시간 로그를 볼 수 있게 함.
 ///
 /// `@autoclosure` 파라미터로 인해 디버그가 꺼져 있을 때는
 /// 문자열 보간 비용이 전혀 들지 않음.
+///
+/// 로그는 os_log 서브시스템으로만 출력한다. 설정 창의 "로그 보기" 버튼이
+/// `log stream`으로 이 출력을 터미널에 실시간 표시한다.
 ///
 /// 단, OSLog의 컴파일 타임 보간/Redaction 기능은 사용할 수 없음.
 /// 사용자가 명시적으로 켜는 진단 로그이므로 문제 없음.
@@ -16,12 +18,6 @@ final class DebugLogger {
                                     category: "debug")
 
     private let logger: Logger
-    private let maxLines = 500
-    /// 오래된 것부터 순서대로. 메인 큐에서 읽기/쓰기.
-    private(set) var lines: [String] = []
-    /// 설정 창에서 설정. 창이 닫히면 nil.
-    /// 항상 메인 큐에서 호출됨.
-    var onAppend: ((String) -> Void)?
 
     init(subsystem: String, category: String) {
         self.logger = Logger(subsystem: subsystem, category: category)
@@ -33,24 +29,6 @@ final class DebugLogger {
         // 비escaping autoclosure를 넘기기 전에 문자열을 구체화.
         let msg = message()
         logger.notice("\(msg, privacy: .public)")
-
-        // 메모리 버퍼에 추가 + UI 알림.
-        // IMK 콜백은 임의 큐에서 오므로 메인 큐로 전환.
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.lines.append(msg)
-            if self.lines.count > self.maxLines {
-                self.lines.removeFirst(self.lines.count - self.maxLines)
-            }
-            self.onAppend?(msg)
-        }
-    }
-
-    /// 메모리 버퍼 초기화. UI는 onAppend를 통해 별도 갱신.
-    func clear() {
-        DispatchQueue.main.async { [weak self] in
-            self?.lines.removeAll()
-        }
     }
 }
 
