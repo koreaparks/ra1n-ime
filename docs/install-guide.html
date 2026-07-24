@@ -207,14 +207,14 @@
 
   <section class="card">
     <h2>설치</h2>
-    <p>이 안내서와 함께 받은 <code>ra1nIME.pkg</code>로 설치합니다.</p>
+    <p>이 안내서와 함께 받은 <code>.pkg</code> 파일(예: <code>ra1nIME_v1.0.1.pkg</code>)로 설치합니다.</p>
 
     <ol class="steps">
       <li>
         <strong>설치 실행 (경고가 뜨면 아래 방법 중 하나)</strong>
         <div class="method">
           <h3>방법 A — 우클릭 열기 (가장 간단)</h3>
-          <p>다운로드한 <code>ra1nIME.pkg</code>를 <strong>우클릭(control + 클릭) → 열기</strong>를 선택하고,
+          <p>다운로드한 <strong>pkg 파일</strong>을 <strong>우클릭(control + 클릭) → 열기</strong>를 선택하고,
           나타나는 대화상자에서 다시 <strong>열기</strong>를 누릅니다.</p>
         </div>
         <div class="method">
@@ -224,8 +224,8 @@
         </div>
         <div class="method">
           <h3>방법 C — 터미널 (경고 없이 바로 설치)</h3>
-          <pre><code>sudo installer -pkg ~/Downloads/ra1nIME.pkg -target /</code></pre>
-          <p class="muted">Gatekeeper 대화상자를 거치지 않고 설치됩니다.</p>
+          <pre><code>sudo installer -pkg ~/Downloads/ra1nIME_*.pkg -target /</code></pre>
+          <p class="muted">Gatekeeper 대화상자를 거치지 않고 설치됩니다. 다운로드 폴더에 여러 버전이 있으면 정확한 파일명을 지정하세요.</p>
         </div>
       </li>
       <li>
@@ -257,7 +257,7 @@
 
   <section class="card">
     <h2>업데이트</h2>
-    <p>새 버전의 <code>ra1nIME.pkg</code>를 위 설치 과정대로 다시 설치하면 됩니다.</p>
+    <p>새 버전의 <code>.pkg</code> 파일을 위 설치 과정대로 다시 설치하면 됩니다.</p>
     <div class="callout warn">
       <p class="title">⚠️ 업데이트할 때 주의</p>
       <p>개발자 등록 없이 배포되므로, <strong>매 업데이트마다 “입력 모니터링” 권한을 다시 허용</strong>해야 할 수 있습니다.
