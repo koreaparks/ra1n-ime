@@ -116,6 +116,26 @@ extension KeyBinding {
         }
     }
 
+    // --- Toggle matching ---
+
+    /// keyCombo 바인딩이 주어진 키코드 + 원시 modifier 플래그와 일치하는지 판단.
+    /// GlobalKeyTap(전역 탭)과 HangulInputController(IMK 경로)가 공용으로 사용해
+    /// 매칭 로직이 한 곳에만 존재하도록 한다.
+    /// `distinguishSided`가 켜져 있고 이 바인딩에 device(L/R) 비트가 기록돼 있으면
+    /// 좌/우까지 엄격히 비교한다.
+    func matchesCombo(keyCode eventKeyCode: UInt16, rawFlags: UInt, distinguishSided: Bool) -> Bool {
+        guard kind == .keyCombo, keyCode == eventKeyCode else { return false }
+        let evGen = rawFlags & KeyBinding.genericModifierMask
+        let bindGen = modifiers & KeyBinding.genericModifierMask
+        guard evGen == bindGen else { return false }
+        if distinguishSided, deviceModifiers != 0 {
+            let evDev = rawFlags & KeyBinding.deviceModifierMask
+            let bindDev = deviceModifiers & KeyBinding.deviceModifierMask
+            return evDev == bindDev
+        }
+        return true
+    }
+
     // --- Regular key helpers ---
 
     static func regularKeyName(_ kc: UInt16) -> String {

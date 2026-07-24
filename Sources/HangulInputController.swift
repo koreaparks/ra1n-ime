@@ -142,23 +142,14 @@ final class HangulInputController: IMKInputController {
             imeLog.notice("RA1N CLIENT bundle=\(bundleID) attrs=[\(attrs.joined(separator: ","))]")
         }
 
-        // 키 콤보 토글 바인딩 매칭. GlobalKeyTap 로직과 동일.
+        // 키 콤보 토글 바인딩 매칭. GlobalKeyTap과 동일한 KeyBinding.matchesCombo 사용.
         let binding = Preferences.shared.toggleBinding
-        if binding.kind == .keyCombo, binding.keyCode == keyCode {
-            let raw = UInt(event.cgEvent?.flags.rawValue ?? UInt64(flags.rawValue))
-            let evGen = raw & KeyBinding.genericModifierMask
-            let bindGen = binding.modifiers & KeyBinding.genericModifierMask
-            var matches = (evGen == bindGen)
-            if matches, Preferences.shared.distinguishSidedModifiers,
-               binding.deviceModifiers != 0 {
-                let evDev = raw & KeyBinding.deviceModifierMask
-                let bindDev = binding.deviceModifiers & KeyBinding.deviceModifierMask
-                matches = (evDev == bindDev)
-            }
-            if matches {
-                toggleMode(sender: sender)
-                return true
-            }
+        let rawFlags = UInt(event.cgEvent?.flags.rawValue ?? UInt64(flags.rawValue))
+        if binding.matchesCombo(keyCode: keyCode,
+                                rawFlags: rawFlags,
+                                distinguishSided: Preferences.shared.distinguishSidedModifiers) {
+            toggleMode(sender: sender)
+            return true
         }
 
         if CurrentMode.shared.mode == .english {

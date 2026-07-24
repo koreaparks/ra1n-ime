@@ -120,21 +120,11 @@ final class GlobalKeyTap {
                 stripBindingModFlags(from: event, kc: binding.keyCode)
             }
 
-            if binding.kind == .keyCombo, binding.keyCode == kc {
-                let raw = UInt(event.flags.rawValue)
-                let evGen = raw & KeyBinding.genericModifierMask
-                let bindGen = binding.modifiers & KeyBinding.genericModifierMask
-                var matches = (evGen == bindGen)
-                if matches, Preferences.shared.distinguishSidedModifiers,
-                   binding.deviceModifiers != 0 {
-                    let evDev = raw & KeyBinding.deviceModifierMask
-                    let bindDev = binding.deviceModifiers & KeyBinding.deviceModifierMask
-                    matches = (evDev == bindDev)
-                }
-                if matches {
-                    DispatchQueue.main.async { Self.fireToggle() }
-                    return nil  // 삼킴
-                }
+            if binding.matchesCombo(keyCode: kc,
+                                    rawFlags: UInt(event.flags.rawValue),
+                                    distinguishSided: Preferences.shared.distinguishSidedModifiers) {
+                DispatchQueue.main.async { Self.fireToggle() }
+                return nil  // 삼킴
             }
             return pass
 

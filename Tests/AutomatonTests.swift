@@ -116,6 +116,14 @@ func testCannotBeFinal() {
     check(render(j("ㄱㅏㅃ")), "가ㅃ", "ㅃ 종성 불가 → 새 초성")
 }
 
+func testDefensiveFallback() {
+    // 유효 자모(초/중성)가 아닌 문자가 들어오면 진행 중 조합을 커밋하고
+    // 그 문자를 그대로 덧붙인다. 실제 호출처(Keymap)에선 도달하지 않지만,
+    // 오용 시에도 크래시 없이 안전하게 처리해야 한다.
+    check(render(j("ㄱㅏX")), "가X", "비자모 입력 시 조합 커밋 후 덧붙임")
+    check(render(j("X")), "X", "빈 조합에서 비자모 입력")
+}
+
 func testBackspace() {
     // 닭(ㄷㅏㄹㄱ) 조합을 단계적으로 지운다
     let a = HangulAutomaton()
@@ -155,6 +163,7 @@ struct AutomatonTests {
         testDoubleMedial()
         testLiaison()
         testCannotBeFinal()
+        testDefensiveFallback()
         testBackspace()
         testBackspaceDoubleMedial()
         testKeymapSanity()

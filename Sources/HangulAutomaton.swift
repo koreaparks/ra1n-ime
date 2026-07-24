@@ -71,9 +71,12 @@ final class HangulAutomaton {
         if Jamo.jungseongTable[jamo] != nil {
             return inputVowel(jamo)
         }
-        // 호출처가 유효한 자모만 전달하므로 이 분기는 도달하지 않음.
-        let c = commit()
-        return .commit(committed: c + String(jamo), composing: "")
+        // 방어적 경로: 유효한 자모(초/중성)가 아니면 진행 중 조합을 커밋하고
+        // 해당 문자를 그대로 덧붙인다. 현재 호출처(Keymap)는 항상 유효 자모만
+        // 넘기므로 실제로는 도달하지 않지만, 오용 시 크래시 대신 안전하게 처리한다.
+        let committed = currentComposition()
+        reset()
+        return .commit(committed: committed + String(jamo), composing: "")
     }
 
     private func inputConsonant(_ c: Character) -> InputResult {
@@ -174,12 +177,6 @@ final class HangulAutomaton {
         if let l = L { return String(l) }
         if let v = V { return String(v) }
         return ""
-    }
-
-    func commit() -> String {
-        let s = currentComposition()
-        reset()
-        return s
     }
 
     func reset() {
