@@ -1,0 +1,57 @@
+name: Release
+
+# v1.1.0 처럼 'v'로 시작하는 태그를 push하면
+# pkg를 빌드해 GitHub Releases에 자동 게시한다.
+on:
+  push:
+    tags:
+      - 'v*'
+
+# gh release create 가 Release를 생성/업로드하려면 쓰기 권한이 필요.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 태그와 VERSION 파일 일치 확인
+        run: |
+          VERSION="$(cat VERSION)"
+          TAG="${GITHUB_REF_NAME#v}"   # 앞의 'v' 제거
+          echo "태그=$TAG, VERSION 파일=$VERSION"
+          if [ "$VERSION" != "$TAG" ]; then
+            echo "::error::태그($TAG)와 VERSION 파일($VERSION)이 다릅니다. VERSION을 먼저 맞추세요."
+            exit 1
+          fi
+
+      - name: 조합 엔진 단위 테스트
+        run: make test
+
+      - name: 배포 pkg 빌드 (ad-hoc 서명)
+        run: ./scripts/build-pkg.sh
+
+      - name: GitHub Release 게시 (pkg 첨부, 재실행 시 덮어쓰기)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="$(cat VERSION)"
+          NOTES="$RUNNER_TEMP/notes.md"
+          cat > "$NOTES" <<EOF
+          ra1n IME ${VERSION}
+
+          개발자 등록 없이 **ad-hoc 서명**으로 배포됩니다. 설치 시 "확인되지 않은 개발자" 경고가 뜰 수 있으며, 우회 방법은 README의 설치 안내를 참고하세요.
+          EOF
+          # 같은 태그로 재실행돼도 실패하지 않도록: 릴리스가 이미 있으면 pkg를 덮어쓰고 갱신.
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            echo "기존 릴리스 발견 → pkg 덮어쓰기 + 정보 갱신"
+            gh release upload "${GITHUB_REF_NAME}" build/ra1nIME.pkg --clobber
+            gh release edit "${GITHUB_REF_NAME}" --title "ra1n IME ${GITHUB_REF_NAME}" --notes-file "$NOTES"
+          else
+            echo "새 릴리스 생성"
+            gh release create "${GITHUB_REF_NAME}" build/ra1nIME.pkg --title "ra1n IME ${GITHUB_REF_NAME}" --notes-file "$NOTES"
+          fi
