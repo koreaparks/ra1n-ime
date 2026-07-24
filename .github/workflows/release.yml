@@ -44,14 +44,18 @@ jobs:
           cat > "$NOTES" <<EOF
           ra1n IME ${VERSION}
 
-          개발자 등록 없이 **ad-hoc 서명**으로 배포됩니다. 설치 시 "확인되지 않은 개발자" 경고가 뜰 수 있으며, 우회 방법은 README의 설치 안내를 참고하세요.
+          **설치 전 \`install-guide.html\`을 내려받아 브라우저로 열어보세요.** (설치/삭제/권한 안내)
+
+          개발자 등록 없이 **ad-hoc 서명**으로 배포됩니다. 설치 시 "확인되지 않은 개발자" 경고가 뜰 수 있으며, 우회 방법은 안내서(또는 README)를 참고하세요.
           EOF
-          # 같은 태그로 재실행돼도 실패하지 않도록: 릴리스가 이미 있으면 pkg를 덮어쓰고 갱신.
+          # 릴리스에 첨부할 파일: pkg + 설치 안내 HTML
+          ASSETS="build/ra1nIME.pkg docs/install-guide.html"
+          # 같은 태그로 재실행돼도 실패하지 않도록: 릴리스가 이미 있으면 덮어쓰고 갱신.
           if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            echo "기존 릴리스 발견 → pkg 덮어쓰기 + 정보 갱신"
-            gh release upload "${GITHUB_REF_NAME}" build/ra1nIME.pkg --clobber
+            echo "기존 릴리스 발견 → 에셋 덮어쓰기 + 정보 갱신"
+            gh release upload "${GITHUB_REF_NAME}" $ASSETS --clobber
             gh release edit "${GITHUB_REF_NAME}" --title "ra1n IME ${GITHUB_REF_NAME}" --notes-file "$NOTES"
           else
             echo "새 릴리스 생성"
-            gh release create "${GITHUB_REF_NAME}" build/ra1nIME.pkg --title "ra1n IME ${GITHUB_REF_NAME}" --notes-file "$NOTES"
+            gh release create "${GITHUB_REF_NAME}" $ASSETS --title "ra1n IME ${GITHUB_REF_NAME}" --notes-file "$NOTES"
           fi
