@@ -1,6 +1,12 @@
 APP_NAME    := ra1nIME
 BUILD_DIR   := build
 BUNDLE      := $(BUILD_DIR)/$(APP_NAME).app
+
+# Version — single source of truth is the VERSION file (marketing version).
+# Build number auto-derives from the git commit count, so it increases monotonically
+# on every commit. Both are stamped into the bundle Info.plist and the installer at build time.
+VERSION      := $(shell cat VERSION 2>/dev/null || echo 0.0.0)
+BUILD_NUMBER := $(shell git rev-list --count HEAD 2>/dev/null || echo 1)
 BUNDLE_NAME := $(APP_NAME).app
 CONTENTS    := $(BUNDLE)/Contents
 EXEC        := $(CONTENTS)/MacOS/$(APP_NAME)
@@ -31,16 +37,19 @@ ifeq ($(strip $(CODESIGN_IDENTITY)),)
 CODESIGN_IDENTITY := -
 endif
 
-.PHONY: all clean install refresh reload uninstall help pkg
+.PHONY: all clean install refresh reload uninstall help pkg version
 
 all: $(BUNDLE)
 
-$(BUNDLE): $(SOURCES) Info.plist ra1nIME.entitlements res/AppIcon.icns res/MenuIcon.tiff
+$(BUNDLE): $(SOURCES) Info.plist ra1nIME.entitlements res/AppIcon.icns res/MenuIcon.tiff VERSION
 	@mkdir -p $(CONTENTS)/MacOS \
 	          $(CONTENTS)/Resources/Base.lproj \
 	          $(CONTENTS)/Resources/ko.lproj \
 	          $(CONTENTS)/Resources/en.lproj
 	cp Info.plist $(INFO)
+	# Stamp version from the single source of truth (VERSION file + git commit count).
+	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(VERSION)" $(INFO)
+	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(BUILD_NUMBER)" $(INFO)
 	cp res/AppIcon.icns $(CONTENTS)/Resources/AppIcon.icns
 	cp res/MenuIcon.tiff $(CONTENTS)/Resources/MenuIcon.tiff
 	printf 'APPL????' > $(CONTENTS)/PkgInfo
@@ -95,11 +104,11 @@ pkg: $(BUNDLE)
 	@mkdir -p /tmp/$(APP_NAME)-dist
 	@cp -R $(BUNDLE) /tmp/$(APP_NAME)-pkgroot/Library/Input\ Methods/
 	@cp scripts/postinstall /tmp/$(APP_NAME)-scripts/postinstall
-	@cp scripts/distribution.xml /tmp/$(APP_NAME)-dist/distribution.xml
+	@sed 's/__VERSION__/$(VERSION)/g' scripts/distribution.xml > /tmp/$(APP_NAME)-dist/distribution.xml
 	pkgbuild \
 		--root /tmp/$(APP_NAME)-pkgroot \
 		--identifier kr.ra1n.inputmethod.ra1nime \
-		--version 1.0.0 \
+		--version $(VERSION) \
 		--install-location / \
 		--scripts /tmp/$(APP_NAME)-scripts \
 		/tmp/$(APP_NAME)-dist/component.pkg
@@ -108,7 +117,10 @@ pkg: $(BUNDLE)
 		--package-path /tmp/$(APP_NAME)-dist \
 		$(BUILD_DIR)/$(APP_NAME).pkg
 	@rm -rf /tmp/$(APP_NAME)-pkgroot /tmp/$(APP_NAME)-scripts /tmp/$(APP_NAME)-dist
-	@echo "Created $(BUILD_DIR)/$(APP_NAME).pkg"
+	@echo "Created $(BUILD_DIR)/$(APP_NAME).pkg (version $(VERSION), build $(BUILD_NUMBER))"
+
+version:
+	@echo "$(VERSION) (build $(BUILD_NUMBER))"
 
 help:
 	@echo "make           build the .app bundle ($(BUNDLE))"
@@ -117,8 +129,10 @@ help:
 	@echo "make reload    install + restart IME process (Swift-only changes)"
 	@echo "make uninstall remove from $(INSTALL_DIR)"
 	@echo "make pkg       build an installer package ($(BUILD_DIR)/$(APP_NAME).pkg)"
+	@echo "make version   print the current version ($(VERSION), build $(BUILD_NUMBER))"
 	@echo "make clean     delete build artifacts"
 	@echo ""
+	@echo "Bump the version by editing the VERSION file; build number is the git commit count."
 	@echo "Override default install target with: make refresh INSTALL_DIR=... SUDO=..."
 
 clean:

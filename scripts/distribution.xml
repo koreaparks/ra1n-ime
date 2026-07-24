@@ -10,7 +10,7 @@
         <message>ra1n IME 설치가 완료되었습니다.&#x0a;&#x0a;입력기를 정상적으로 사용하려면 재로그인이 필요합니다. 아래의 [Log Out] 버튼을 눌러 지금 바로 로그아웃하세요.&#x0a;&#x0a;로그인 후 시스템 설정 → 키보드 → 입력 소스에서 ra1n IME를 추가해주세요.</message>
     </conclusion>
 
-    <pkg-ref id="kr.ra1n.inputmethod.ra1nime" version="1.0.0" onConclusion="RequireLogout">component.pkg</pkg-ref>
+    <pkg-ref id="kr.ra1n.inputmethod.ra1nime" version="__VERSION__" onConclusion="RequireLogout">component.pkg</pkg-ref>
 
     <choices-outline>
         <line choice="default">
