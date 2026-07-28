@@ -1,8 +1,10 @@
 #!/bin/bash
-set -e
+# best-effort 후처리 — 여기서 어떤 단계가 실패해도 설치 자체는 성공으로 끝나야 한다.
+# 따라서 set -e 를 쓰지 않고 각 명령을 개별 가드하며, 마지막에 항상 exit 0 한다.
+# (lsregister 가 특정 Mac에서 0이 아닌 값을 반환해 설치가 실패로 표시되던 문제 방지)
 
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister"
-"$LSREGISTER" -f "/Library/Input Methods/ra1nIME.app"
+"$LSREGISTER" -f "/Library/Input Methods/ra1nIME.app" 2>/dev/null || true
 
 killall TextInputMenuAgent 2>/dev/null || true
 killall cfprefsd 2>/dev/null || true
