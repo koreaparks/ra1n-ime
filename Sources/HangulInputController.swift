@@ -14,13 +14,23 @@ import OSLog
 /// 단, OSLog의 컴파일 타임 보간/Redaction 기능은 사용할 수 없음.
 /// 사용자가 명시적으로 켜는 진단 로그이므로 문제 없음.
 final class DebugLogger {
-    static let shared = DebugLogger(subsystem: "kr.ra1n.inputmethod.ra1nime",
+    /// 로그 조회에 쓰는 os_log 서브시스템.
+    /// 설정 창의 "로그 보기"와 `docs/`의 로그 명령이 이 값으로 필터한다.
+    /// `process` 기준으로 필터하면 InputMethodKit 프레임워크가 같은 프로세스에서
+    /// 찍는 내부 로그가 전부 섞이므로 항상 이 서브시스템으로 걸러야 한다.
+    static let subsystem = "kr.ra1n.inputmethod.ra1nime"
+
+    static let shared = DebugLogger(subsystem: DebugLogger.subsystem,
                                     category: "debug")
 
     private let logger: Logger
+    /// `debugLogging`과 무관하게 항상 남는 로거. 서브시스템은 위와 동일하게 두어
+    /// 기존 로그 조회 명령으로 함께 잡힌다.
+    private let eventLogger: Logger
 
     init(subsystem: String, category: String) {
         self.logger = Logger(subsystem: subsystem, category: category)
+        self.eventLogger = Logger(subsystem: subsystem, category: "event")
     }
 
     func notice(_ message: @autoclosure () -> String) {
@@ -29,6 +39,16 @@ final class DebugLogger {
         // 비escaping autoclosure를 넘기기 전에 문자열을 구체화.
         let msg = message()
         logger.notice("\(msg, privacy: .public)")
+    }
+
+    /// 드물게 일어나지만 사후 진단에 꼭 필요한 사건(모드 토글, 중복 인스턴스 감지,
+    /// 이벤트 탭 설치 결과)을 기록. `debugLogging`이 꺼져 있어도 남는다.
+    ///
+    /// NSLog를 쓰지 않는 이유: NSLog 출력이 통합 로깅에 수집되지 않아
+    /// `log show`로 사후 조회가 불가능한 환경이 확인되었다. 재현이 어려운
+    /// 증상을 추적하려면 반드시 os_log로 남겨야 한다.
+    func event(_ message: String) {
+        eventLogger.notice("\(message, privacy: .public)")
     }
 }
 
@@ -61,7 +81,7 @@ final class HangulInputController: IMKInputController {
 
     override init!(server: IMKServer!, delegate: Any!, client inputClient: Any!) {
         super.init(server: server, delegate: delegate, client: inputClient)
-        NSLog("ra1nIME.init controller")
+        imeLog.notice("RA1N init controller")
     }
 
     override func handle(_ event: NSEvent!, client sender: Any!) -> Bool {
@@ -237,7 +257,11 @@ final class HangulInputController: IMKInputController {
     }
 
     override func activateServer(_ sender: Any!) {
-        imeLog.notice("RA1N activateServer")
+        // 어떤 앱에 대해 활성화되었는지 남긴다. 특정 앱에서만 입력이 안 되는
+        // 증상을 추적할 때 이 값 없이는 로그만으로 앱을 특정할 수 없다.
+        let client = sender as? IMKTextInput
+        let bundleID = client?.bundleIdentifier()
+        imeLog.notice("RA1N activateServer bundle=\(bundleID ?? "?")")
         super.activateServer(sender)
         automaton.reset()
         // 포커스 이동 시 새 클라이언트의 속성을 다시 로깅.
@@ -254,14 +278,16 @@ final class HangulInputController: IMKInputController {
             app.clickMonitor?.ensureStarted()
         }
 
-        if let client = sender as? IMKTextInput {
-            let bundleID = client.bundleIdentifier()
+        // 클라이언트 캐스팅이 실패한 경우에는 activeBundleID를 건드리지 않는다
+        // (nil로 덮으면 앱별 모드 기억이 엉뚱한 앱에 저장된다).
+        if client != nil {
             CurrentMode.shared.appChanged(to: bundleID)
         }
     }
 
     override func deactivateServer(_ sender: Any!) {
-        imeLog.notice("RA1N deactivateServer")
+        let bundleID = (sender as? IMKTextInput)?.bundleIdentifier()
+        imeLog.notice("RA1N deactivateServer bundle=\(bundleID ?? "?")")
         endComposition(sender: sender)
         if HangulInputController.current === self {
             HangulInputController.current = nil
@@ -324,19 +350,12 @@ final class HangulInputController: IMKInputController {
         prefsItem.target = self
         menu.addItem(prefsItem)
 
-        let aboutItem = NSMenuItem(title: "ra1n IME 정보", action: #selector(menuShowAbout), keyEquivalent: "")
-        aboutItem.target = self
-        menu.addItem(aboutItem)
-
+        // 버전은 설정 창 하단에 표시하므로 별도 "정보" 항목을 두지 않는다.
         return menu
     }
 
     @objc private func menuOpenPreferences() {
         PreferencesWindowController.shared.show()
-    }
-
-    @objc private func menuShowAbout() {
-        AboutSheet.show()
     }
 
     // MARK: - Marker-based composition

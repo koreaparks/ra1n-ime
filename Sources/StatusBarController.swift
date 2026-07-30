@@ -1,7 +1,7 @@
 import Cocoa
 
 /// 메뉴 바에 "ㄱ" / "A" 아이콘을 표시. 클릭 시 한↔영 전환.
-/// 설정/정보는 IMK 컨트롤러 메뉴에 두어 중복을 피함.
+/// 설정은 IMK 컨트롤러 메뉴에 두어 중복을 피함.
 final class StatusBarController: NSObject {
     private let item: NSStatusItem
     private var modeObserver: NSObjectProtocol?

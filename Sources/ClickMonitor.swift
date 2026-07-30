@@ -46,7 +46,7 @@ final class ClickMonitor {
             callback: callback,
             userInfo: nil
         ) else {
-            NSLog("ra1nIME: ClickMonitor.tapCreate failed — grant Input Monitoring permission")
+            DebugLogger.shared.event("ClickMonitor: tapCreate 실패 — 입력 모니터링 권한 필요")
             return
         }
 
@@ -54,7 +54,7 @@ final class ClickMonitor {
         self.source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, machPort, 0)
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: machPort, enable: true)
-        NSLog("ra1nIME: ClickMonitor installed at session level")
+        DebugLogger.shared.event("ClickMonitor 설치됨 (session level)")
     }
 
     /// 입력 모니터링 권한을 나중에 켠 경우를 대비해 활성화 시점에 재시도.

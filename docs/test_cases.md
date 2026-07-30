@@ -118,8 +118,12 @@
 - 기본 binding: Right-Shift+Space 또는 Right-Shift (Preferences에서 변경 가능)
 - 기대: 모드 전환. 조합 중인 글자 commit. 상태바 아이콘 변경.
 
-### E2. 토글 + 다른 키 조합
-- 토글 키 누른 상태에서 다른 키 조합: 토글 발화 취소되어야
+### E2. 토글 modifier를 누른 채 다른 키 입력
+- 시나리오: 토글 binding이 modifier 단독(예: 오른쪽 ⌘)일 때, 그 키를 누른 상태로 A 등을 입력
+- 기대: 이어지는 키에서 해당 modifier 플래그가 제거되어 ⌘A 같은 단축키로 오동작하지 않아야 함
+- 담당 로직: `GlobalKeyTap.stripBindingModFlags` (`bindingModHeld`가 true인 동안 적용)
+- 참고: 토글 자체는 키를 **누르는 순간** 발화한다 (`GlobalKeyTap`은 key-down에서 발화).
+  따라서 "다른 키를 함께 누르면 토글이 취소된다"는 동작은 설계에 없다.
 
 ## F. 시각적 표현
 

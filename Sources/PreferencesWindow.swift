@@ -275,9 +275,11 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
         root.addArrangedSubview(debugHeader)
         root.setCustomSpacing(16, after: root.arrangedSubviews.last!)
 
-        // 닫기
+        // 닫기 — 왼쪽에 버전을 함께 둔다. 별도 "정보" 창 없이 여기서 확인.
         let closeRow = NSStackView()
         closeRow.orientation = .horizontal
+        closeRow.alignment = .centerY
+        closeRow.addArrangedSubview(versionLabel())
         let flex = NSView()
         flex.setContentHuggingPriority(.defaultLow, for: .horizontal)
         closeRow.addArrangedSubview(flex)
@@ -288,6 +290,19 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
         root.addArrangedSubview(closeRow)
 
         window?.contentView = root
+    }
+
+    /// 번들에 새겨진 버전. 빌드 시 `VERSION` 파일과 git 커밋 수에서 주입되므로
+    /// 소스 Info.plist의 템플릿 값이 아니라 실제 설치된 번들의 값이 표시된다.
+    private func versionLabel() -> NSTextField {
+        let info = Bundle.main.infoDictionary ?? [:]
+        let version = info["CFBundleShortVersionString"] as? String ?? "?"
+        let build   = info["CFBundleVersion"] as? String ?? "?"
+        let label = NSTextField(labelWithString: "버전 \(version) (build \(build))")
+        label.font = NSFont.systemFont(ofSize: 11)
+        label.textColor = .secondaryLabelColor
+        label.toolTip = "ra1n IME — 두벌식 한글 입력기"
+        return label
     }
 
     private func formLabel(_ text: String) -> NSTextField {
@@ -341,14 +356,13 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
     private func makeMainMenu() -> NSMenu {
         let main = NSMenu()
 
-        // 앱 서브메뉴 (맨 왼쪽 볼드체 — 제목은 AppKit이 CFBundleName에서 읽음)
+        // 앱 서브메뉴 (맨 왼쪽 볼드체 — 제목은 AppKit이 CFBundleName에서 읽음).
+        // 항목은 비어 있지만 자리는 유지해야 한다. AppKit은 메인 메뉴의 첫 항목을
+        // 무조건 앱 메뉴로 렌더링하므로, 이걸 빼면 "파일"이 앱 이름 자리로 올라간다.
+        // 버전은 설정 창 하단에 있고 Quit은 의도적으로 없으므로 넣을 항목이 없다.
         let appItem = NSMenuItem()
         main.addItem(appItem)
-        let appMenu = NSMenu()
-        appItem.submenu = appMenu
-        appMenu.addItem(NSMenuItem(title: "ra1n IME 정보",
-                                   action: #selector(menuAbout),
-                                   keyEquivalent: ""))
+        appItem.submenu = NSMenu()
 
         // 파일 메뉴: 닫기 ⌘W
         let fileItem = NSMenuItem()
@@ -372,8 +386,6 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
 
         return main
     }
-
-    @objc private func menuAbout() { AboutSheet.show() }
 
     @objc private func startModeChanged(_ sender: NSSegmentedControl) {
         Preferences.shared.startMode = (sender.selectedSegment == 0) ? .korean : .english
@@ -402,7 +414,14 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
     /// 만들어 기본 앱(Terminal)으로 여는 방식을 사용. 실패 시 명령어를
     /// 클립보드에 복사하고 안내한다.
     @objc private func viewDebugLog(_ sender: NSButton) {
-        let cmd = "log stream --predicate 'process == \"ra1nIME\"' --info"
+        // subsystem으로 필터해야 우리 로그만 나온다. process 기준으로 하면
+        // InputMethodKit 프레임워크가 같은 프로세스에서 찍는 내부 로그
+        // ("Activate Server" 등)가 전부 섞여, 디버그 로그를 꺼도 계속 출력되는
+        // 것처럼 보인다. `docs/`의 로그 명령과 같은 기준.
+        //
+        // zsh에는 `log` 빌트인이 있어 클립보드로 복사해 붙여넣으면 가로채이므로
+        // 절대 경로를 쓴다.
+        let cmd = "/usr/bin/log stream --predicate 'subsystem == \"\(DebugLogger.subsystem)\"' --info"
 
         // 폴백 대비 항상 클립보드에 복사.
         NSPasteboard.general.clearContents()
@@ -438,22 +457,4 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
         NSWorkspace.shared.open(SystemSettingsURL.accessibility)
     }
     @objc private func closeWindow() { window?.performClose(nil) }
-}
-
-enum AboutSheet {
-    static func show() {
-        let info = Bundle.main.infoDictionary ?? [:]
-        let version = info["CFBundleShortVersionString"] as? String ?? "?"
-        let build   = info["CFBundleVersion"] as? String ?? "?"
-        let alert = NSAlert()
-        alert.messageText = "ra1n IME"
-        alert.informativeText = """
-            버전 \(version) (build \(build))
-            한글 입력기 — 두벌식, 조합 중 Enter 한 번에 처리
-            """
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "확인")
-        NSApp.activate(ignoringOtherApps: true)
-        alert.runModal()
-    }
 }

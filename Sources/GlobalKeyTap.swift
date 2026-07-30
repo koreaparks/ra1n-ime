@@ -49,7 +49,7 @@ final class GlobalKeyTap {
             },
             userInfo: userInfo)
         else {
-            NSLog("ra1nIME: CGEvent.tapCreate failed — grant Input Monitoring to ra1nIME.app")
+            DebugLogger.shared.event("GlobalKeyTap: tapCreate 실패 — 입력 모니터링 권한 필요")
             return false
         }
 
@@ -57,7 +57,8 @@ final class GlobalKeyTap {
         self.runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, machPort, 0)
         CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
         CGEvent.tapEnable(tap: machPort, enable: true)
-        NSLog("ra1nIME: GlobalKeyTap installed at session level")
+        DebugLogger.shared.event(
+            "GlobalKeyTap 설치됨 (session level, pid=\(ProcessInfo.processInfo.processIdentifier))")
         return true
     }
 
@@ -160,13 +161,30 @@ final class GlobalKeyTap {
 
     // MARK: - Toggle action
 
+    /// 한/영 토글 실행. 전역 탭과 상태 표시줄 클릭이 공유하는 단일 경로.
+    ///
+    /// 진행 중인 조합을 먼저 커밋한다. IMK 경로(`HangulInputController.toggleMode`)는
+    /// 이미 그렇게 하지만, 전역 탭이 토글 키를 삼켜 IMK 경로가 실행되지 않으므로
+    /// 여기서 커밋하지 않으면 조합이 오토마톤에 남는다. 그 상태로 다시 한글 모드로
+    /// 돌아오면 남은 조합에 새 입력이 이어붙어("ㅎ" 잔류 후 ㅏ → "하") 모드가
+    /// 바뀌지 않은 것처럼 보인다. `test_cases.md` E1이 요구하는 동작.
     static func fireToggle() {
+        // 조합 중이 아니면 commitCurrent가 아무 것도 하지 않으므로 무조건 호출해도 안전.
+        HangulInputController.current?.commitCurrent()
+
         let switchToSelf = Preferences.shared.switchToSelfOnToggle
         let isOurs = isCurrentSourceRa1nIME()
-        NSLog("ra1nIME: fireToggle switchToSelf=\(switchToSelf) isOurs=\(isOurs)")
+
+        // 아이콘은 바뀌는데 실제 입력 언어가 안 바뀌는 증상은 재현이 어려우므로,
+        // 토글 시점의 판단 근거를 debugLogging과 무관하게 남긴다.
+        // pid를 함께 남겨 중복 인스턴스가 각자 토글하는 상황을 구분한다.
+        DebugLogger.shared.event(
+            "toggle pid=\(ProcessInfo.processInfo.processIdentifier) "
+            + "front=\(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "?") "
+            + "mode=\(CurrentMode.shared.mode.rawValue) "
+            + "switchToSelf=\(switchToSelf) isOurs=\(isOurs)")
 
         if switchToSelf, !isOurs {
-            NSLog("ra1nIME: attempting TISSelectInputSource")
             activateRa1nIME()
             CurrentMode.shared.set(.korean)
             return
@@ -188,24 +206,25 @@ final class GlobalKeyTap {
 
     private static func activateRa1nIME() {
         guard let list = TISCreateInputSourceList(nil, true)?.takeRetainedValue() else {
-            NSLog("ra1nIME: TISCreateInputSourceList returned nil")
+            DebugLogger.shared.event("TISCreateInputSourceList가 nil 반환")
             return
         }
         let count = CFArrayGetCount(list)
-        NSLog("ra1nIME: TISCreateInputSourceList count=\(count)")
         for i in 0..<count {
             let source = unsafeBitCast(CFArrayGetValueAtIndex(list, i), to: TISInputSource.self)
             guard let idPtr = TISGetInputSourceProperty(source, kTISPropertyInputSourceID) else { continue }
             let sourceID = Unmanaged<CFString>.fromOpaque(idPtr).takeUnretainedValue() as String
-            NSLog("ra1nIME: source #\(i) id=\(sourceID)")
+            DebugLogger.shared.notice("RA1N source #\(i) id=\(sourceID)")
             if sourceID.hasPrefix(bundleId) {
+                // 전환 실패는 "아이콘만 바뀌고 입력 언어는 그대로"의 직접 원인이 되므로
+                // 결과 코드를 반드시 남긴다.
                 let err = TISSelectInputSource(source)
-                NSLog("ra1nIME: TISSelectInputSource called for \(sourceID), err=\(err)")
+                DebugLogger.shared.event("TISSelectInputSource \(sourceID) err=\(err)")
                 refreshInputContext()
                 return
             }
         }
-        NSLog("ra1nIME: no source matched bundleId \(bundleId)")
+        DebugLogger.shared.event("입력 소스 목록(\(count)개)에서 \(bundleId) 를 찾지 못함")
     }
 
     /// 입력 소스를 전환해도 현재 포커스 클라이언트는 다음 포커스 변경 전까지
@@ -222,6 +241,6 @@ final class GlobalKeyTap {
             up.setIntegerValueField(.eventSourceUserData, value: kSyntheticTag)
             up.post(tap: .cgAnnotatedSessionEventTap)
         }
-        NSLog("ra1nIME: refreshInputContext sent synthetic Function key")
+        DebugLogger.shared.notice("RA1N refreshInputContext sent synthetic Function key")
     }
 }
