@@ -57,6 +57,12 @@ final class ClickMonitor {
         NSLog("ra1nIME: ClickMonitor installed at session level")
     }
 
+    /// 입력 모니터링 권한을 나중에 켠 경우를 대비해 활성화 시점에 재시도.
+    /// start()가 tap이 이미 있으면 무시하므로 중복 생성되지 않는다.
+    func ensureStarted() {
+        DispatchQueue.main.async { [weak self] in self?.start() }
+    }
+
     func stop() {
         if let tap {
             CGEvent.tapEnable(tap: tap, enable: false)

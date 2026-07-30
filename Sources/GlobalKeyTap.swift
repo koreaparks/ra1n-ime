@@ -61,6 +61,17 @@ final class GlobalKeyTap {
         return true
     }
 
+    /// 실행 시점에 입력 모니터링 권한이 없어 탭 생성이 실패했을 수 있다.
+    /// 권한을 나중에 켠 경우 프로세스 재시작 없이 살아나도록, 입력기 활성화
+    /// 시점에 이 메서드로 재시도한다. 이미 붙어 있으면 아무 것도 하지 않는다.
+    /// (탭 생성은 메인 런루프에 소스를 등록하므로 항상 메인 스레드에서 수행)
+    func ensureStarted() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.tap == nil else { return }
+            self.start()
+        }
+    }
+
     // MARK: - Event handling
 
     private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {

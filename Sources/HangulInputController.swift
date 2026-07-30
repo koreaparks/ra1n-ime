@@ -246,6 +246,14 @@ final class HangulInputController: IMKInputController {
         HangulInputController.current = self
         currentClient = sender as AnyObject?
 
+        // 실행 시점에 입력 모니터링 권한이 없어 이벤트 탭이 안 붙었을 수 있으므로,
+        // 입력기가 활성화될 때마다 재시도한다. 권한을 나중에 켠 경우 프로세스
+        // 재시작(killall/재로그인) 없이 다음 활성화에서 전역 토글이 살아난다.
+        if let app = NSApp.delegate as? AppDelegate {
+            app.globalTap?.ensureStarted()
+            app.clickMonitor?.ensureStarted()
+        }
+
         if let client = sender as? IMKTextInput {
             let bundleID = client.bundleIdentifier()
             CurrentMode.shared.appChanged(to: bundleID)
