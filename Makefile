@@ -20,7 +20,8 @@ SOURCES     := Sources/main.swift \
                Sources/GlobalKeyTap.swift \
                Sources/ClickMonitor.swift \
                Sources/StatusBarController.swift \
-               Sources/PermissionChecker.swift
+               Sources/PermissionChecker.swift \
+               Sources/SetupAssistant.swift
 
 # Default install: system-wide (sudo required). Override for user-local:
 #   make install INSTALL_DIR="$$HOME/Library/Input Methods" SUDO=

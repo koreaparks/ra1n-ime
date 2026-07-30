@@ -11,10 +11,12 @@ killall cfprefsd 2>/dev/null || true
 
 loggedInUser=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ { print $3 }')
 
+# 로그인 사용자 계정으로 설정 도우미 창을 띄운다 (손쉬운 사용 → 입력 모니터링 → 완료 안내).
+# fire-and-forget 이므로 설치는 즉시 끝난다.
 if [ -n "$loggedInUser" ]; then
   uid=$(id -u "$loggedInUser" 2>/dev/null || echo "")
   if [ -n "$uid" ]; then
-    launchctl asuser "$uid" osascript -e 'display notification "시스템 설정 → 개인정보 보호 → 입력 모니터링에서 ra1n IME를 활성화해주세요." with title "ra1n IME 권한 필요"' 2>/dev/null || true
+    launchctl asuser "$uid" open -n "/Library/Input Methods/ra1nIME.app" --args --setup 2>/dev/null || true
   fi
 fi
 

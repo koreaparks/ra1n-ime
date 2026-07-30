@@ -5,7 +5,11 @@ import InputMethodKit
 let kConnectionName = "kr.ra1n.inputmethod.ra1nime_Connection"
 let bundleId = Bundle.main.bundleIdentifier ?? "kr.ra1n.inputmethod.ra1nime"
 
-let server = IMKServer(name: kConnectionName, bundleIdentifier: bundleId)
+// pkg 설치 직후 postinstall이 `--setup` 인자로 실행하는 설정 도우미 모드.
+// 이 모드에서는 IMKServer를 만들지 않아(입력기 인스턴스와 충돌 방지) 도우미 창만 띄운다.
+let isSetupMode = CommandLine.arguments.contains("--setup")
+
+let server: IMKServer? = isSetupMode ? nil : IMKServer(name: kConnectionName, bundleIdentifier: bundleId)
 _ = server
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -13,6 +17,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var clickMonitor: ClickMonitor?
     var statusBar: StatusBarController?
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // 설정 도우미 모드: 일반 앱 창으로 승격해 도우미만 표시하고 입력기 초기화는 건너뜀.
+        if isSetupMode {
+            NSApp.setActivationPolicy(.regular)
+            SetupAssistantController.shared.show()
+            return
+        }
+
         globalTap = GlobalKeyTap()
         let tapStarted = globalTap?.start() ?? false
         clickMonitor = ClickMonitor()
